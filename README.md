@@ -34,9 +34,46 @@ sudo docker run -v ovpn-data:/etc/openvpn --rm kylemanna/openvpn ovpn_genconfig 
 
 # Initialize the PKI and generate server certificates
 sudo docker run -v ovpn-data:/etc/openvpn --rm -it kylemanna/openvpn ovpn_initpki
+```
 
-# Start the OpenVPN container in detached mode
-sudo docker run -v ovpn-data:/etc/openvpn -d --cap-add=NET_ADMIN -p 1194:1194/udp --name openvpn kylemanna/openvpn
+#### Option A:
+Isolated network
+```
+## Start the OpenVPN container in detached mode
+# sudo docker run -v ovpn-data:/etc/openvpn -d --cap-add=NET_ADMIN -p 1194:1194/udp --name openvpn kylemanna/openvpn
+```
+
+#### Option B:
+Host network
+```
+## Start OpenVPN container with host network
+docker run -v ovpn-data:/etc/openvpn -d \
+  --cap-add=NET_ADMIN \
+  --network=host \
+  --restart=unless-stopped \
+  --name openvpn \
+  kylemanna/openvpn
+
+# 1. Enable IP forwarding
+sudo sysctl -w net.ipv4.ip_forward=1
+echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
+
+# 2. Set up NAT/masquerading (replace ens3 with your internet-facing interface)
+sudo iptables -t nat -A POSTROUTING -s 192.168.255.0/24 -o ens3 -j MASQUERADE
+
+# 3. Allow forwarding
+sudo iptables -A FORWARD -s 192.168.255.0/24 -j ACCEPT
+sudo iptables -A FORWARD -d 192.168.255.0/24 -j ACCEPT
+
+# 4. Make rules persistent
+sudo apt-get install -y iptables-persistent
+sudo netfilter-persistent save
+
+# Check tun0 interface exists on host
+ip addr show tun0
+
+# Check routing
+ip route | grep 192.168.255
 ```
 
 ### Firewall configuration
