@@ -90,3 +90,45 @@ Send to telegram
 ./send.sh example_user.ovpn
 ```
 You can merge these scripts for convenience
+
+### Fixed IP
+Here's how to set it up with the kylemanna/openvpn image:
+
+1. Enable CCD in server config (one-time setup)
+
+#### Add client-config-dir directive to server config
+sudo docker run -v ovpn-data:/etc/openvpn --rm -it kylemanna/openvpn bash -c \
+  'echo "client-config-dir /etc/openvpn/ccd" >> /etc/openvpn/openvpn.conf'
+
+#### Create the CCD directory
+sudo docker run -v ovpn-data:/etc/openvpn --rm kylemanna/openvpn mkdir -p /etc/openvpn/ccd
+
+2. Assign static IP to a client
+
+For each client that needs a fixed IP, create a file in /etc/openvpn/ccd/ named exactly as the client certificate CN (the
+  name you used in generate.sh):
+
+#### For "windows" client, assign 192.168.255.6
+sudo docker run -v ovpn-data:/etc/openvpn --rm kylemanna/openvpn bash -c \
+  'echo "ifconfig-push 192.168.255.6 192.168.255.5" > /etc/openvpn/ccd/windows'
+
+Note: The second IP (192.168.255.5) is the server endpoint for this client's tunnel. For topology net30 (default), use
+pairs: .5-.6, .9-.10, .13-.14, etc.
+
+3. Restart OpenVPN
+
+sudo docker restart openvpn
+
+Example for your clients
+
+#### Assign windows client to 192.168.255.6
+sudo docker run -v ovpn-data:/etc/openvpn --rm kylemanna/openvpn bash -c \
+  'echo "ifconfig-push 192.168.255.6 192.168.255.5" > /etc/openvpn/ccd/windows'
+
+#### Assign oleg client to 192.168.255.10
+sudo docker run -v ovpn-data:/etc/openvpn --rm kylemanna/openvpn bash -c \
+  'echo "ifconfig-push 192.168.255.10 192.168.255.9" > /etc/openvpn/ccd/oleg'
+
+#### Assign maxim client to 192.168.255.14
+sudo docker run -v ovpn-data:/etc/openvpn --rm kylemanna/openvpn bash -c \
+  'echo "ifconfig-push 192.168.255.14 192.168.255.13" > /etc/openvpn/ccd/maxim'
